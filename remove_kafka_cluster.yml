@@ -1,0 +1,50 @@
+---
+## Written by santaricotta - github.com/santaricotta
+## Licensed under AGPLv3.0 or later
+
+- name: Uninstall and remove all traces of Kafka
+  hosts: brokers
+  become: true
+  become_user: root
+  become_method: ansible.builtin.sudo
+  gather_facts: true
+
+  vars:
+    kafka_version: 3.9.0
+  tasks:
+    - name: Stop kafka service
+      ansible.builtin.systemd:
+        name: kafka
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove kafka service file
+      ansible.builtin.file:
+        path: /etc/systemd/system/kafka.service
+        state: absent
+      ignore_errors: true
+
+    - name: Reload systemd to recognize changes
+      ansible.builtin.command:
+        cmd: systemctl daemon-reload
+      ignore_errors: true
+      changed_when: false
+
+    - name: Remove kafka installation directory
+      ansible.builtin.file:
+        path: /opt/kafka_2.13-{{ kafka_version }}
+        state: absent
+      ignore_errors: true
+
+    - name: Remove kafka message directory
+      ansible.builtin.file:
+        path: /srv/kafka
+        state: absent
+      ignore_errors: true
+
+    - name: Remove /var/log/kafka directory
+      ansible.builtin.file:
+        path: /var/log/kafka
+        state: absent
+      ignore_errors: true

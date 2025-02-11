@@ -1,0 +1,20 @@
+[Unit]
+###################################################################
+## This file is ANSIBLE managed. Manual changes will be removed. ##
+###################################################################
+Description=kafka
+After=network.target
+
+[Service]
+User={{ kafka_user }}
+ExecStart=/opt/kafka_2.13-{{ kafka_version }}/bin/kafka-server-start.sh /opt/kafka_2.13-{{ kafka_version }}/config/kraft/server.properties
+ExecStop=/opt/kafka_2.13-{{ kafka_version }}/bin/kafka-server-stop.sh
+Restart=on-failure
+Environment=JMX_PORT=9001
+Environment="KAFKA_HEAP_OPTS=-Xms{{ (ansible_memtotal_mb - 1024) }}m -Xmx{{ (ansible_memtotal_mb - 1024) }}m"
+Environment="LOG_DIR={{ kafka_application_log_dir }}"
+LimitNOFILE=65535
+OOMScoreAdjust=-500
+
+[Install]
+WantedBy=multi-user.target

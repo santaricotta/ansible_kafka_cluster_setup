@@ -1,0 +1,109 @@
+---
+## Written by santaricotta - github.com/santaricotta
+## Licensed under AGPLv3.0 or later
+
+- name: Install Apache Kafka cluster (with KRaft, not Zookeeper)
+  hosts: brokers
+  become: true
+  become_user: root
+  become_method: ansible.builtin.sudo
+  gather_facts: true
+  # serial: 1 # This renders `run_once: true` irrelevant, so it's replaced with a when condition for uuid generation.
+
+  vars:
+    kafka_user: kafka # User under which kafka will run.
+    kafka_version: 3.9.0 # This playbook is only tested with the version shown here. Consider older and newer versions untested.
+    kafka_url: https://dlcdn.apache.org/kafka/{{ kafka_version }}/kafka_2.13-{{ kafka_version }}.tgz
+    kafka_application_log_dir: /var/log/kafka
+    kafka_message_log_dir: /srv/kafka/messages
+    enable_debug: true # This controls whether Debug tasks run.
+
+  tasks:
+    - name: Ensure kafka_user exists
+      ansible.builtin.user:
+        name: "{{ kafka_user }}"
+        state: present
+
+#    - name: Install openjdk-21-jre-headless
+#      ansible.builtin.apt:
+#        name: openjdk-21-jre-headless
+#        state: present
+
+    - name: Install headless OpenJDK 21 JRE
+      ansible.builtin.package:
+        ## TODO - break this into a multiline? Looks ugly either way. 
+        name: "{{ 'openjdk-21-jre-headless' if ansible_facts['os_family'] == 'Debian' else 'java-21-openjdk-headless' if ansible_facts['os_family'] == 'RedHat' else fail('Unsupported OS family') }}"
+        state: present
+
+    - name: Create kafka message directory
+      ansible.builtin.file:
+        path: "{{ kafka_message_log_dir }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ kafka_user }}"
+        group: "{{ kafka_user }}"
+
+    - name: Create /var/log/kafka directory
+      ansible.builtin.file:
+        path: "{{ kafka_application_log_dir }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ kafka_user }}"
+        group: adm
+
+    - name: Download kafka {{ kafka_version }}
+      ansible.builtin.get_url:
+        url: "{{ kafka_url }}"
+        dest: /tmp/kafka.tgz
+        mode: '0644'
+
+    - name: Unpack kafka {{ kafka_version }}
+      ansible.builtin.unarchive:
+        src: /tmp/kafka.tgz
+        dest: /opt/
+        remote_src: true
+
+    - name: Create kafka configuration
+      ansible.builtin.template:
+        src: server.properties.j2
+        dest: /opt/kafka_2.13-{{ kafka_version }}/config/kraft/server.properties
+        mode: '0644'
+        owner: "{{ kafka_user }}"
+        group: "{{ kafka_user }}"
+
+    - name: Generate cluster ID
+      run_once: true # Only generate it once (per execution batch) and use on all. TODO: needs protection from small batch runs and `serial: 1`
+      become: false # This runs locally on the ansible host and does not need the privileges.
+      delegate_to: localhost
+      ansible.builtin.shell: |
+        /usr/bin/uuidgen
+      register: cluster_id
+      changed_when: false
+
+    - name: Debug - print cluster_id
+      ansible.builtin.debug:
+        var: cluster_id.stdout
+      when: (cluster_id is defined) and enable_debug
+
+    - name: Check if kafka storage has been initialised
+      ansible.builtin.stat:
+        path: /srv/kafka/messages/meta.properties
+      register: kafka_storage_initialised
+
+    - name: Format kafka storage
+      ansible.builtin.shell: |
+        /opt/kafka_2.13-{{ kafka_version }}/bin/kafka-storage.sh format -t {{ cluster_id.stdout }} -c /opt/kafka_2.13-{{ kafka_version }}/config/kraft/server.properties
+      when: not kafka_storage_initialised.stat.exists
+
+    - name: Create kafka service
+      ansible.builtin.template:
+        src: kafka.service.j2
+        dest: /etc/systemd/system/kafka.service
+        mode: '0644'
+
+    - name: Start kafka
+      ansible.builtin.service:
+        name: kafka
+        state: started
+        enabled: true
+        daemon-reload: true

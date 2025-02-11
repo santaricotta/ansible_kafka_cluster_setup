@@ -1,0 +1,16 @@
+# Per project ViM settings.
+.vimrc
+
+# Codium uses this directory to store its configuration.
+.vscode/
+
+# Do not put record of failed runs into repository.
+*.retry
+
+# Test files
+test*
+*.bak
+templates/test*
+files/test*
+
+.lock

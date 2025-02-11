@@ -1,0 +1,66 @@
+###################################################################
+## This file is ANSIBLE managed. Manual changes will be removed. ##
+###################################################################
+
+## WARNING:
+## Empty lines surrounding Jinja2 statements serve a purpose here.
+## Do not eliminate them without testing thoroughly. 
+
+############################# Server Basics #############################
+
+process.roles=broker,controller
+{% for host in groups['brokers'] -%}
+    {% if host == inventory_hostname -%}
+node.id={{ loop.index0 }}
+    {%- endif %}
+{% endfor %}
+
+controller.quorum.voters={% for host in groups['brokers'] -%}{% if loop.first -%}{% else -%},{% endif -%}{{ loop.index0 }}@{{ hostvars[host]['ansible_host'] }}:9093{% endfor %}
+
+
+############################# Socket Server Settings #############################
+
+listeners=PLAINTEXT://:9092,CONTROLLER://:9093
+# test
+inter.broker.listener.name=PLAINTEXT
+advertised.listeners=PLAINTEXT://{{ ansible_host }}:9092
+controller.listener.names=CONTROLLER
+# test
+listener.security.protocol.map=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,SSL:SSL,SASL_PLAINTEXT:SASL_PLAINTEXT,SASL_SSL:SASL_SSL
+
+num.network.threads=4
+num.io.threads=16
+
+socket.send.buffer.bytes=102400
+socket.receive.buffer.bytes=102400
+socket.request.max.bytes=104857600
+
+############################# Log Basics #############################
+
+log.dirs={{ kafka_message_log_dir }}
+# Set default number of partitions to be the same as number of brokers in inventory file. 
+num.partitions={{ groups['brokers'] | count }}
+num.recovery.threads.per.data.dir=1
+# Set default replication factor to 1 if it's a single node cluster, otherwise to 3.
+default.replication.factor={% if groups['brokers'] | count == 1 %}1{% else %}3{% endif %}
+
+# Set minimum in-sync replicas to 1 for single-node clusters, 2 for multi-node ones.
+min.insync.replicas={% if groups['brokers'] | count == 1 %}1{% else %}2{% endif %}
+
+auto.create.topics.enable=false
+
+############################# Internal Topic Settings  #############################
+
+# The replication factor for the group metadata internal topics "__consumer_offsets" and "__transaction_state"
+# For anything other than development testing, a value greater than 1 is recommended to ensure availability such as 3.
+# offsets.topic.replication.factor=1
+# transaction.state.log.replication.factor=1
+# transaction.state.log.min.isr=1
+
+############################# Log Retention Policy #############################
+
+log.retention.hours=168
+#log.retention.bytes=1073741824
+log.segment.bytes=1073741824
+log.retention.check.interval.ms=300000
+
