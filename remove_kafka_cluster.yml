@@ -11,40 +11,68 @@
 
   vars:
     kafka_version: 3.9.0
+    kafka_application_log_dir: /var/log/kafka
+    kafka_message_log_dir: /srv/kafka
+    kafka_firewalld_zone: public
+    kafka_ports:
+      - 9092/tcp
+      - 9093/tcp
+
   tasks:
     - name: Stop kafka service
       ansible.builtin.systemd:
         name: kafka
         state: stopped
         enabled: false
-      ignore_errors: true
+      changed_when: false
+      failed_when: false
 
     - name: Remove kafka service file
       ansible.builtin.file:
         path: /etc/systemd/system/kafka.service
         state: absent
-      ignore_errors: true
+      failed_when: false
 
-    - name: Reload systemd to recognize changes
-      ansible.builtin.command:
-        cmd: systemctl daemon-reload
-      ignore_errors: true
+    - name: Reload systemd to recognise changes
+      ansible.builtin.systemd:
+        daemon_reload: true
       changed_when: false
 
     - name: Remove kafka installation directory
       ansible.builtin.file:
-        path: /opt/kafka_2.13-{{ kafka_version }}
+        path: "/opt/kafka_2.13-{{ kafka_version }}"
         state: absent
-      ignore_errors: true
+      failed_when: false
 
-    - name: Remove kafka message directory
+    - name: "Remove {{ kafka_message_log_dir }} directory"
       ansible.builtin.file:
-        path: /srv/kafka
+        path: "{{ kafka_message_log_dir }}"
         state: absent
-      ignore_errors: true
+      failed_when: false
 
-    - name: Remove /var/log/kafka directory
+    - name: "Remove {{ kafka_application_log_dir }} directory"
       ansible.builtin.file:
-        path: /var/log/kafka
+        path: "{{ kafka_application_log_dir }}"
         state: absent
-      ignore_errors: true
+      failed_when: false
+
+    - name: Remove firewalld rules on RedHat systems
+      when: ansible_facts['os_family'] == 'RedHat'
+      block:
+        - name: Remove kafka ports from firewalld
+          ansible.posix.firewalld:
+            zone: "{{ kafka_firewalld_zone }}"
+            port: "{{ item }}"
+            state: disabled
+            permanent: true
+            immediate: true
+          loop: "{{ kafka_ports }}"
+
+        - name: Get current firewalld rules
+          ansible.posix.firewalld_info:
+            zones: "{{ kafka_firewalld_zone }}"
+          register: firewalld_rules
+
+        - name: Print current firewalld rules
+          ansible.builtin.debug:
+            var: firewalld_rules

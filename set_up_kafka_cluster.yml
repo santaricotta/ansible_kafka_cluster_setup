@@ -16,6 +16,10 @@
     kafka_url: https://dlcdn.apache.org/kafka/{{ kafka_version }}/kafka_2.13-{{ kafka_version }}.tgz
     kafka_application_log_dir: /var/log/kafka
     kafka_message_log_dir: /srv/kafka/messages
+    kafka_ports:
+      - 9092/tcp
+      - 9093/tcp
+    kafka_firewalld_zone: public
     enable_debug: true # This controls whether Debug tasks run.
 
   tasks:
@@ -24,18 +28,13 @@
         name: "{{ kafka_user }}"
         state: present
 
-#    - name: Install openjdk-21-jre-headless
-#      ansible.builtin.apt:
-#        name: openjdk-21-jre-headless
-#        state: present
-
     - name: Install headless OpenJDK 21 JRE
       ansible.builtin.package:
-        ## TODO - break this into a multiline? Looks ugly either way. 
+        ## TODO - break this into a multiline? Looks ugly either way.
         name: "{{ 'openjdk-21-jre-headless' if ansible_facts['os_family'] == 'Debian' else 'java-21-openjdk-headless' if ansible_facts['os_family'] == 'RedHat' else fail('Unsupported OS family') }}"
         state: present
 
-    - name: Create kafka message directory
+    - name: "Create {{ kafka_message_log_dir }} directory"
       ansible.builtin.file:
         path: "{{ kafka_message_log_dir }}"
         state: directory
@@ -43,7 +42,7 @@
         owner: "{{ kafka_user }}"
         group: "{{ kafka_user }}"
 
-    - name: Create /var/log/kafka directory
+    - name: "Create {{ kafka_application_log_dir }} directory"
       ansible.builtin.file:
         path: "{{ kafka_application_log_dir }}"
         state: directory
@@ -51,13 +50,13 @@
         owner: "{{ kafka_user }}"
         group: adm
 
-    - name: Download kafka {{ kafka_version }}
+    - name: "Download kafka {{ kafka_version }}"
       ansible.builtin.get_url:
         url: "{{ kafka_url }}"
         dest: /tmp/kafka.tgz
         mode: '0644'
 
-    - name: Unpack kafka {{ kafka_version }}
+    - name: "Unpack kafka {{ kafka_version }}"
       ansible.builtin.unarchive:
         src: /tmp/kafka.tgz
         dest: /opt/
@@ -81,9 +80,9 @@
       changed_when: false
 
     - name: Debug - print cluster_id
+      when: (cluster_id is defined) and enable_debug
       ansible.builtin.debug:
         var: cluster_id.stdout
-      when: (cluster_id is defined) and enable_debug
 
     - name: Check if kafka storage has been initialised
       ansible.builtin.stat:
@@ -91,15 +90,37 @@
       register: kafka_storage_initialised
 
     - name: Format kafka storage
+      when: not kafka_storage_initialised.stat.exists
       ansible.builtin.shell: |
         /opt/kafka_2.13-{{ kafka_version }}/bin/kafka-storage.sh format -t {{ cluster_id.stdout }} -c /opt/kafka_2.13-{{ kafka_version }}/config/kraft/server.properties
-      when: not kafka_storage_initialised.stat.exists
 
     - name: Create kafka service
       ansible.builtin.template:
         src: kafka.service.j2
         dest: /etc/systemd/system/kafka.service
         mode: '0644'
+
+    - name: Firewalld rules for REdHat systems
+      when: ansible_facts['os_family'] == 'RedHat'
+      block:
+        - name: Open kafka ports in firewalld
+          ansible.posix.firewalld:
+            zone: "{{ kafka_firewalld_zone }}"
+            port: "{{ item }}"
+            state: enabled
+            permanent: true
+            immediate: true
+          loop: "{{ kafka_ports }}"
+        - name: Debug firewalld rules
+          when: enable_debug
+          block:
+            - name: Debug - get current firewalld rules
+              ansible.posix.firewalld_info:
+                zones: "{{ kafka_firewalld_zone }}"
+              register: firewalld_rules
+            - name: Debug - print current firewalld rules
+              ansible.builtin.debug:
+                var: firewalld_rules
 
     - name: Start kafka
       ansible.builtin.service:

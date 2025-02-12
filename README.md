@@ -2,13 +2,14 @@
 
 * This playbook makes setting up a multi node Kafka cluster with kraft protocol trivial. 
 * It is deliberately in a single file to keep it easily readable.
+    * The variables are also in the playbook files for that reason.
 * For the moment, only Debian/Ubuntu based and RedHat based targets are supported. 
 * Sensible defaults were assumed in configuration files - all can be altered. 
 * There is no authentication/encryption enabled.
 * This playbook has been tested 
     * with Ansible 11.2.0 and Ansible-core 2.18.2
     * on Python 3.13.1 
-    * against Ubuntu 24.04.1 and Alma Linux 9.5 targets
+    * against Ubuntu 24.04.1 and Rocky Linux 9.5 targets
     * on x86_64 and aarch64 architectures
 
 # important settings, defaults and variables
@@ -19,6 +20,7 @@
     * Kafka's application logs will be saved in `/var/log/kafka`. This is defined under variable `kafka_application_log_dir`.
         * No changes have been made to log4j configuration.
     * All kafka message logs will be saved in `/srv/kafka/messages`. This is defined in variable `kafka_message_log_dir`.
+    * On RedHat based hosts, it is assumed `firewalld` is enabled. Ports specified in `kafka_ports` variable are added to zone specified in `kafka_firewalld_zone` variable. The default values are `9092/tcp 9093/tcp` and `public` respectively.
 
 * `server.properties.j2` template file defaults:
     * EVERY broker is a broker and a controller and a quorum voter. This will be a problem for very large clusters if left as such after installation.
