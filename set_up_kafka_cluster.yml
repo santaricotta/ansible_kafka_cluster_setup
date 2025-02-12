@@ -8,7 +8,6 @@
   become_user: root
   become_method: ansible.builtin.sudo
   gather_facts: true
-  # serial: 1 # This renders `run_once: true` irrelevant, so it's replaced with a when condition for uuid generation.
 
   vars:
     kafka_user: kafka # User under which kafka will run.
