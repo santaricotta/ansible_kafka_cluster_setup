@@ -1,10 +1,13 @@
-# Per project ViM settings.
+# Per project ViM settings
 .vimrc
 
-# Codium uses this directory to store its configuration.
+# Intellij IDEA settings
+.idea/
+
+# Codium settings
 .vscode/
 
-# Do not put record of failed runs into repository.
+# Do not put record of failed runs into repository
 *.retry
 
 # Test files
