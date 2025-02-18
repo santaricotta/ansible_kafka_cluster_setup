@@ -14,33 +14,28 @@
 
 # important settings, defaults and variables
 
-* By default:
-    * Kafka will be set up to run under user `kafka`. This is defined under variable `kafka_user`.
-    * Kafka will be installed in version 3.9.0. This is defined under variable `kafka_version`.
-    * Kafka's application logs will be saved in `/var/log/kafka`. This is defined under variable `kafka_application_log_dir`.
-        * No changes have been made to log4j configuration.
-    * All kafka message logs will be saved in `/srv/kafka/messages`. This is defined in variable `kafka_message_log_dir`.
-    * On RedHat based hosts, it is assumed `firewalld` is enabled. Ports specified in `kafka_ports` variable are added to zone specified in `kafka_firewalld_zone` variable. The default values are `9092/tcp 9093/tcp` and `public` respectively.
+General defaults and settables:
 
-* `server.properties.j2` template file defaults:
-    * EVERY broker is a broker and a controller and a quorum voter. This will be a problem for very large clusters if left as such after installation.
-    * only plaintext communication gets set up. (To avoid questions about setting up client certificates and ACLs.)
-    * Auto creation of topics is disabled. Change the value of `auto.create.topics.enable` if you want it.
-    * Default number of partitions for new topics is equal to the number of brokers in the cluster. 
-    * Default number of replicas for new topics is 1 for a single node "cluster" and 3 in multi-node clusters. 
-    * Minimum in-sync replicas is set to 1 in a single node "cluster" and 2 in multi-node clusters. 
-
-* `kafka.service.j2` template file defaults:
-    * `User`, under which this service runs is specified in variable `kafka_user` and defaults to `kafka`.
-    * Multiple environment variables are set:
-        * `JMX_PORT` is set to 9001 for monitoring purposes.
-        * Java heap memory settings:
-            * initial heap size is set to total RAM minus 1024 MiB
-            * maximum heap size is set to total RAM minus 1024 MiB
-            * These are sensible defaults for a dedicated kafka brokers. If your brokers serve multiple purposes, alter these to leave more RAM for other tasks.
-    * `LOG_DIR`, the directory where kafka messages are stored, is specified in variable `kafka_application_log_dir` and defaults to `/srv/kafka/messages`.
-    * `LimitNOFILE` increases the low system default setting for maximum number of open file descriptors to 65535. This is needed on busy systems. 
-    * `OOMScoreAdjust` gets set to -500 to decrease the chance of this being killed during out-of-memory events. 
+item | variable | default | where used
+-----|-----------|--------|----------
+kafka version | `kafka_version` | 3.9.0 | main playbook
+kafka's message logs | `kafka_message_log_dir` | /srv/kafka/messages | main playbook
+ports to open in firewalld (RedHat only) | `kafka_ports` | 9092/tcp 9093/tcp | main playbook
+firewalld zone in which to open ports (RedHat only) | `kafka_firewalld_zone` | public | main playbook
+each target host's role | no variable | broker AND controller | `server.properties.j2`
+authentication | no variable | no authentication | `server.properties.j2`
+encryption | no variable | PLAINTEXT only | `server.properties.j2`
+topic auto creation | `auto.create.topics.enable` | false | `server.properties.j2`
+number of partitions for new topics | no variable | equal to number of brokers | `server.properties.j2`
+replication factor for new topics | no variable | 1 for single node; 3 for multi-node clusters | `server.properties.j2`
+minimum in-sync replicas | no variable | 1 in single node mode; 2 for multi-node clusters | `server.properties.j2`
+user under which kafka runs | `kafka_user` | kafka | `kafka.service.j2`
+java management extension port for monitoring | `JMX_PORT` | 9001 | `kafka.service.j2`
+java heap memory settings - initial heap size | no variable | total RAM minus 1024MB | `kafka.service.j2`
+java heap memory settings - maximum heap size | no variable | total RAM minus 1024MB | `kafka.service.j2`
+kafka's application logs (env LOG_DIR) | `kafka_application_log_dir` | /var/log/kafka | `kafka.service.j2`
+maximum number of open file descriptors (env LimitNOFILE) | no variable | 65535 | `kafka.service.j2`
+adjustment to OOM score (env OOMScoreAdjust) | no variable | -500 | `kafka.service.j2`
 
 # how to use
 
