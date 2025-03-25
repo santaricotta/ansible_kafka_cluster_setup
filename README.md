@@ -7,8 +7,8 @@
 * Sensible defaults were assumed in configuration files - all can be altered. 
 * There is no authentication/encryption enabled.
 * This playbook has been tested 
-    * with Ansible 11.2.0 and Ansible-core 2.18.2
-    * on Python 3.13.1 
+    * with Ansible 11.3.0 and Ansible-core 2.18.3
+    * on Python 3.13.2 
     * against Ubuntu 24.04.1 and Rocky Linux 9.5 targets
     * on x86_64 and aarch64 architectures
 
@@ -18,7 +18,7 @@ General defaults and settables:
 
 item | variable | default | where used
 -----|-----------|--------|----------
-kafka version | `kafka_version` | 3.9.0 | main playbook
+kafka version | `kafka_version` | 4.0.0 | main playbook
 kafka's message logs | `kafka_message_log_dir` | /srv/kafka/messages | main playbook
 ports to open in firewalld (RedHat only) | `kafka_ports` | 9092/tcp 9093/tcp | main playbook
 firewalld zone in which to open ports (RedHat only) | `kafka_firewalld_zone` | public | main playbook

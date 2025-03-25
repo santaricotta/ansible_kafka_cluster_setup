@@ -11,7 +11,7 @@
 
   vars:
     kafka_user: kafka # User under which kafka will run.
-    kafka_version: 3.9.0 # This playbook is only tested with the version shown here. Consider older and newer versions untested.
+    kafka_version: 4.0.0 # This playbook was only tested with versions 3.9.0 and 4.0.0. Consider older and newer versions untested.
     kafka_url: https://dlcdn.apache.org/kafka/{{ kafka_version }}/kafka_2.13-{{ kafka_version }}.tgz
     kafka_application_log_dir: /var/log/kafka
     kafka_message_log_dir: /srv/kafka/messages
@@ -64,7 +64,8 @@
     - name: Create kafka configuration
       ansible.builtin.template:
         src: server.properties.j2
-        dest: /opt/kafka_2.13-{{ kafka_version }}/config/kraft/server.properties
+        # For Kafka v3.x.x, include "kraft" in the path. For v4.x.x, "kraft" is excluded.
+        dest: /opt/kafka_2.13-{{ kafka_version }}/config/{% if kafka_version.startswith('3') %}kraft/{% endif %}server.properties
         mode: '0644'
         owner: "{{ kafka_user }}"
         group: "{{ kafka_user }}"
@@ -90,8 +91,9 @@
 
     - name: Format kafka storage
       when: not kafka_storage_initialised.stat.exists
+      # For Kafka v3.x.x, include "kraft" in the path. For v4.x.x, "kraft" is excluded.
       ansible.builtin.shell: |
-        /opt/kafka_2.13-{{ kafka_version }}/bin/kafka-storage.sh format -t {{ cluster_id.stdout }} -c /opt/kafka_2.13-{{ kafka_version }}/config/kraft/server.properties
+        /opt/kafka_2.13-{{ kafka_version }}/bin/kafka-storage.sh format -t {{ cluster_id.stdout }} -c /opt/kafka_2.13-{{ kafka_version }}/config/{% if kafka_version.startswith('3') %}kraft/{% endif %}server.properties
 
     - name: Create kafka service
       ansible.builtin.template:

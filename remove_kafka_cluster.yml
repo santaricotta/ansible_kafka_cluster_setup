@@ -10,7 +10,7 @@
   gather_facts: true
 
   vars:
-    kafka_version: 3.9.0
+    kafka_version: 4.0.0
     kafka_application_log_dir: /var/log/kafka
     kafka_message_log_dir: /srv/kafka
     kafka_firewalld_zone: public

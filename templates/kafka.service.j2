@@ -7,7 +7,7 @@ After=network.target
 
 [Service]
 User={{ kafka_user }}
-ExecStart=/opt/kafka_2.13-{{ kafka_version }}/bin/kafka-server-start.sh /opt/kafka_2.13-{{ kafka_version }}/config/kraft/server.properties
+ExecStart=/opt/kafka_2.13-{{ kafka_version }}/bin/kafka-server-start.sh /opt/kafka_2.13-{{ kafka_version }}/config/{% if kafka_version.startswith('3') %}kraft/{% endif %}server.properties
 ExecStop=/opt/kafka_2.13-{{ kafka_version }}/bin/kafka-server-stop.sh
 Restart=on-failure
 Environment=JMX_PORT=9001
